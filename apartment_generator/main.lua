@@ -40,12 +40,13 @@ function M.serialize(val, indent)
 end
 
 -- Run the full pipeline
-function M.generate(seed, iterations)
+-- template_index: 1="南北通透", 2="L型客餐厅", 3="横厅大宅", nil=random
+function M.generate(seed, template_index)
     if seed then math.randomseed(seed) end
-    iterations = iterations or 200
 
-    -- Step 1: Generate room layout
-    local layout = layout_solver.generate(iterations)
+    -- Step 1: Generate room layout from template
+    local layout = layout_solver.generate(template_index)
+    M._template_name = layout.template_name
 
     -- Step 2: Place furniture in all rooms
     furniture_placer.furnish_all(layout.rooms)
@@ -83,6 +84,9 @@ end
 function M.print_summary(output)
     print("========================================")
     print("  APARTMENT LAYOUT GENERATOR")
+    if M._template_name then
+        print("  Template: " .. M._template_name)
+    end
     print("========================================")
     print(string.format("  Size: %.0fm x %.0fm (%.0fm2)", output.apartment.width, output.apartment.depth, output.apartment.width * output.apartment.depth))
     print(string.format("  Ceiling: %.1fm", output.apartment.ceiling_height))
@@ -105,20 +109,23 @@ function M.print_summary(output)
     print("========================================")
 end
 
--- CLI entry point
-if arg then
+-- CLI entry point: lua main.lua [seed] [output_file] [template: 1|2|3]
+if arg and arg[0] and arg[0]:match("main%.lua$") then
     local seed = tonumber(arg[1]) or os.time()
+    local output_file = arg[2]
+    local template_index = tonumber(arg[3])
     print("Seed: " .. seed)
-    local output = M.generate(seed)
+    local output = M.generate(seed, template_index)
     M.print_summary(output)
 
-    -- Optionally write to file
-    if arg[2] then
-        local f = io.open(arg[2], "w")
-        f:write("-- Generated apartment layout (seed: " .. seed .. ")\n")
-        f:write("return " .. M.serialize(output) .. "\n")
-        f:close()
-        print("\nLayout written to: " .. arg[2])
+    if output_file then
+        local f = io.open(output_file, "w")
+        if f then
+            f:write("-- Generated apartment layout (seed: " .. seed .. ")\n")
+            f:write("return " .. M.serialize(output) .. "\n")
+            f:close()
+            print("\nLayout written to: " .. output_file)
+        end
     end
 end
 
